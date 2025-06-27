@@ -2,7 +2,7 @@ name: Build M3U8 Downloader
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
