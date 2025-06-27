@@ -2,28 +2,36 @@ import PyInstaller.__main__
 import sys
 import os
 
+# Determine correct --add-data format
+if sys.platform == 'win32':
+    data_sep = ';'
+    icon_arg = '--icon=app_icon.ico'
+else:
+    data_sep = ':'
+    icon_arg = '--icon=app_icon.ico'  # Can also be .icns if you have one for macOS
+
 # Build configuration
 build_options = [
-    'app.py',  # Your main app file
+    'app.py',
     '--name=M3U8Downloader',
-    '--windowed',  # No console window
-    '--onefile',   # Single executable
-    '--icon=app_icon.ico',  # Optional: add an icon
-    '--add-data=app_icon.ico;.',  # Include icon in bundle
+    '--windowed',
+    '--onefile',
+    icon_arg,
+    f'--add-data=app_icon.ico{data_sep}.',
     '--hidden-import=requests',
     '--hidden-import=urllib3',
     '--clean',
 ]
 
 # Platform-specific options
-if sys.platform == 'darwin':  # macOS
+if sys.platform == 'darwin':
     build_options.extend([
         '--osx-bundle-identifier=com.elfadouaki.m3u8downloader',
-        '--target-arch=universal2',  # Universal binary
+        '--target-architecture=universal2',
     ])
-elif sys.platform == 'win32':  # Windows
+elif sys.platform == 'win32':
     build_options.extend([
-        '--version-file=version_info.txt',  # Optional version info
+        '--version-file=version_info.txt',
     ])
 
 # Run PyInstaller
