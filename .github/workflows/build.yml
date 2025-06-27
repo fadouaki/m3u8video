@@ -1,71 +1,61 @@
-name: Build Multi-Platform Releases
+name: Build M3U8 Downloader
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            asset_name: M3U8Downloader-linux
-            ffmpeg_path: /usr/bin/ffmpeg
-          - os: windows-latest
-            asset_name: M3U8Downloader-win.exe
-            ffmpeg_path: C:\\FFmpeg\\bin\\ffmpeg.exe
-          - os: macos-latest
-            asset_name: M3U8Downloader-macos
-            ffmpeg_path: /usr/local/bin/ffmpeg
-
+  build-macos:
+    runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: 3.11
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller requests m3u8
+          pip install -r requirements.txt pyinstaller
 
       - name: Install FFmpeg
         run: |
-          case ${{ matrix.os }} in
-            ubuntu-latest)
-              sudo apt-get update && sudo apt-get install -y ffmpeg
-              ;;
-            windows-latest)
-              echo "FFmpeg is pre-bundled or added via PyInstaller"
-              ;;
-            macos-latest)
-              brew install ffmpeg
-              ;;
-          esac
+          brew install ffmpeg
 
-      - name: Build with PyInstaller
+      - name: Build macOS app
         run: |
-          pyinstaller --onefile --add-binary "${{ matrix.ffmpeg_path }};." m3u8_downloader.py
-          mv dist/m3u8_downloader* dist/${{ matrix.asset_name }}
+          python build.py
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.asset_name }}
-          path: dist/${{ matrix.asset_name }}
+          name: macOS-App
+          path: dist/
 
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          files: dist/${{ matrix.asset_name }}
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build Windows app
+        run: |
+          python build.py
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Windows-App
+          path: dist/
