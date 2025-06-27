@@ -1,0 +1,71 @@
+name: Build Multi-Platform Releases
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            asset_name: M3U8Downloader-linux
+            ffmpeg_path: /usr/bin/ffmpeg
+          - os: windows-latest
+            asset_name: M3U8Downloader-win.exe
+            ffmpeg_path: C:\\FFmpeg\\bin\\ffmpeg.exe
+          - os: macos-latest
+            asset_name: M3U8Downloader-macos
+            ffmpeg_path: /usr/local/bin/ffmpeg
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller requests m3u8
+
+      - name: Install FFmpeg
+        run: |
+          case ${{ matrix.os }} in
+            ubuntu-latest)
+              sudo apt-get update && sudo apt-get install -y ffmpeg
+              ;;
+            windows-latest)
+              echo "FFmpeg is pre-bundled or added via PyInstaller"
+              ;;
+            macos-latest)
+              brew install ffmpeg
+              ;;
+          esac
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --add-binary "${{ matrix.ffmpeg_path }};." m3u8_downloader.py
+          mv dist/m3u8_downloader* dist/${{ matrix.asset_name }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/${{ matrix.asset_name }}
