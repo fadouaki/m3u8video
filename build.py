@@ -6,9 +6,9 @@ import os
 if sys.platform == 'win32':
     data_sep = ';'
     icon_arg = '--icon=app_icon.ico'
-else:
+elif sys.platform == 'darwin':
     data_sep = ':'
-    icon_arg = '--icon=app_icon.ico'  # Can also be .icns if you have one for macOS
+    icon_arg = '--icon=app_icon.icns'
 
 # Build configuration
 build_options = [
