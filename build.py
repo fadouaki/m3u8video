@@ -16,11 +16,15 @@ else:  # Linux
 
 # Build configuration
 build_options = [
-    'app.py',  # Use the fixed version
+    'app.py',
     '--name=M3U8Downloader',
     '--windowed',
     '--onefile',
     '--clean',
+    # Reduce antivirus false positives
+    '--noupx',  # Don't use UPX compression
+    '--strip',  # Strip debug symbols
+    # Hidden imports
     '--hidden-import=requests',
     '--hidden-import=urllib3',
     '--hidden-import=m3u8',
@@ -28,10 +32,15 @@ build_options = [
     '--hidden-import=platform',
     '--hidden-import=threading',
     '--hidden-import=tkinter.scrolledtext',
+    '--hidden-import=certifi',
+    '--hidden-import=charset_normalizer',
 ]
 
 # Add icon if available
-if icon_arg:
+if icon_arg and (
+    (sys.platform == 'darwin' and os.path.exists('app_icon.icns')) or
+    (sys.platform == 'win32' and os.path.exists('app_icon.ico'))
+):
     build_options.append(icon_arg)
 
 # Add data files
@@ -45,22 +54,52 @@ if sys.platform == 'darwin':
         # Removed universal2 to avoid compatibility issues
     ])
 elif sys.platform == 'win32':
+    build_options.extend([
+        # Windows-specific options to reduce false positives
+        '--console',  # Show console for debugging (remove for final build)
+        '--disable-windowed-traceback',
+    ])
     if os.path.exists('version_info.txt'):
-        build_options.extend([
-            '--version-file=version_info.txt',
-        ])
+        build_options.append('--version-file=version_info.txt')
+
+# Add exclude options to reduce file size and false positives
+exclude_modules = [
+    'matplotlib',
+    'numpy',
+    'scipy',
+    'pandas',
+    'PIL',
+    'cv2',
+    'tensorflow',
+    'torch',
+    'jupyter',
+    'IPython',
+]
+
+for module in exclude_modules:
+    build_options.append(f'--exclude-module={module}')
 
 print("Building with options:")
 for option in build_options:
     print(f"  {option}")
 
 # Run PyInstaller
-PyInstaller.__main__.run(build_options)
-
-print("\nBuild completed!")
-print("The executable will be in the 'dist' folder.")
-if sys.platform != 'win32':
-    print("\nIMPORTANT: Make sure FFmpeg is installed on target systems:")
-    print("  macOS: brew install ffmpeg")
-    print("  Ubuntu/Debian: sudo apt install ffmpeg")
-    print("  Or download from: https://ffmpeg.org/download.html")
+try:
+    PyInstaller.__main__.run(build_options)
+    print("\n✅ Build completed successfully!")
+    print("The executable will be in the 'dist' folder.")
+    
+    if sys.platform == 'win32':
+        print("\n📝 To reduce antivirus false positives:")
+        print("1. Submit the file to VirusTotal for analysis")
+        print("2. Consider code signing for production releases")
+        print("3. Build reputation by having users mark as safe")
+        print("4. Use Windows Defender exclusions during development")
+    else:
+        print("\nIMPORTANT: Make sure FFmpeg is installed on target systems:")
+        print("  macOS: brew install ffmpeg")
+        print("  Linux: sudo apt install ffmpeg")
+        
+except Exception as e:
+    print(f"\n❌ Build failed: {e}")
+    sys.exit(1)

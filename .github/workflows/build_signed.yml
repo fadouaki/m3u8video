@@ -1,0 +1,110 @@
+name: Build and Sign M3U8 Downloader
+
+on:
+  push:
+    branches: [ master, main ]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt pyinstaller
+
+      - name: Install FFmpeg
+        run: |
+          choco install ffmpeg
+
+      - name: Build Windows app
+        run: |
+          python build.py
+
+      # Code signing step (requires certificate)
+      - name: Sign Windows executable
+        if: github.event_name == 'release'
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          # Decode certificate
+          echo "$env:CERTIFICATE_BASE64" | certutil -decode - certificate.pfx
+          
+          # Sign the executable
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.19041.0\x64\signtool.exe" sign `
+            /f certificate.pfx `
+            /p "$env:CERTIFICATE_PASSWORD" `
+            /t http://timestamp.digicert.com `
+            /fd SHA256 `
+            /v dist\M3U8Downloader.exe
+          
+          # Clean up certificate
+          Remove-Item certificate.pfx
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-App-Signed
+          path: dist/
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt pyinstaller
+
+      - name: Install FFmpeg
+        run: |
+          brew install ffmpeg
+
+      - name: Build macOS app
+        run: |
+          python build.py
+
+      # Code signing for macOS (requires Apple Developer certificate)
+      - name: Sign macOS app
+        if: github.event_name == 'release'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_KEYCHAIN_PWD: ${{ secrets.MACOS_KEYCHAIN_PWD }}
+        run: |
+          # Import certificate
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+          security create-keychain -p "$MACOS_KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_KEYCHAIN_PWD" build.keychain
+          
+          # Sign the app
+          codesign --deep --force --verify --verbose --sign "Developer ID Application" "dist/M3U8Downloader.app"
+          
+          # Notarize (optional but recommended)
+          # xcrun notarytool submit "dist/M3U8Downloader.app" --keychain-profile "notarytool-profile" --wait
+
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-App-Signed
+          path: dist/

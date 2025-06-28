@@ -1,8 +1,8 @@
-# version_info.txt
+# Enhanced version_info.txt for Windows builds
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 2, 0, 0),
+    prodvers=(1, 2, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x4,
@@ -16,11 +16,16 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [
-            StringStruct('CompanyName', 'YourName'),
-            StringStruct('FileDescription', 'M3U8 Downloader'),
-            StringStruct('FileVersion', '1.0.0'),
-            StringStruct('ProductName', 'M3U8 Downloader'),
-            StringStruct('ProductVersion', '1.0.0'),
+            StringStruct('CompanyName', 'Open Source Developer'),
+            StringStruct('FileDescription', 'M3U8 Video Downloader - HLS Stream Downloader'),
+            StringStruct('FileVersion', '1.2.0.0'),
+            StringStruct('InternalName', 'M3U8Downloader'),
+            StringStruct('LegalCopyright', 'Copyright (C) 2025 Open Source Project'),
+            StringStruct('OriginalFilename', 'M3U8Downloader.exe'),
+            StringStruct('ProductName', 'M3U8 Video Downloader'),
+            StringStruct('ProductVersion', '1.2.0'),
+            StringStruct('Comments', 'Downloads video segments from M3U8/HLS playlists and combines them into MP4 files'),
+            StringStruct('LegalTrademarks', ''),
           ]
         )
       ]
