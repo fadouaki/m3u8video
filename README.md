@@ -17,6 +17,7 @@ A powerful, cross-platform desktop application for downloading video streams fro
 - ⚡ **FFmpeg Integration**: Seamless video segment concatenation
 - 🛡️ **Error Handling**: Comprehensive error reporting with helpful solutions
 - 📁 **Smart File Management**: Automatic temporary file cleanup
+- 🎉 **Self-Contained**: No additional software installation required - FFmpeg bundled inside!
 
 ## 🖼️ Screenshots
 

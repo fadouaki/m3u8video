@@ -25,8 +25,9 @@ def get_ffmpeg_path():
     
     # Check if ffmpeg is in PATH
     for name in ffmpeg_names:
-        if shutil.which(name):
-            return name
+        ffmpeg_path = shutil.which(name)
+        if ffmpeg_path:
+            return ffmpeg_path
     
     # Check common installation paths
     common_paths = []
@@ -40,7 +41,11 @@ def get_ffmpeg_path():
         common_paths = [
             r"C:\ffmpeg\bin\ffmpeg.exe",
             r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe"
+            r"C:\Program Files (x86)\ffmpeg\bin\ffmpeg.exe",
+            r"C:\ProgramData\chocolatey\bin\ffmpeg.exe",
+            # Portable FFmpeg locations
+            os.path.join(os.path.expanduser("~"), "ffmpeg", "bin", "ffmpeg.exe"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg.exe"),
         ]
     else:  # Linux
         common_paths = [
@@ -56,17 +61,34 @@ def get_ffmpeg_path():
     
     # If running as PyInstaller bundle, check if ffmpeg is bundled with the app
     if getattr(sys, 'frozen', False):
-        bundle_dir = os.path.dirname(sys.executable)
-        if platform.system() == "Windows":
-            bundled_ffmpeg = os.path.join(bundle_dir, "ffmpeg.exe")
-        else:
-            bundled_ffmpeg = os.path.join(bundle_dir, "ffmpeg")
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
         
-        if os.path.exists(bundled_ffmpeg):
-            return bundled_ffmpeg
+        if platform.system() == "Windows":
+            # Check in the PyInstaller temp directory first (where bundled files go)
+            bundled_ffmpeg = os.path.join(bundle_dir, "ffmpeg.exe")
+            if os.path.exists(bundled_ffmpeg):
+                return bundled_ffmpeg
+            
+            # Fallback: check in the same directory as the executable
+            exe_dir = os.path.dirname(sys.executable)
+            bundled_ffmpeg = os.path.join(exe_dir, "ffmpeg.exe")
+            if os.path.exists(bundled_ffmpeg):
+                return bundled_ffmpeg
+        else:
+            # macOS and Linux
+            bundled_ffmpeg = os.path.join(bundle_dir, "ffmpeg")
+            if os.path.exists(bundled_ffmpeg):
+                return bundled_ffmpeg
+            
+            # Fallback: check in the same directory as the executable
+            exe_dir = os.path.dirname(sys.executable)
+            bundled_ffmpeg = os.path.join(exe_dir, "ffmpeg")
+            if os.path.exists(bundled_ffmpeg):
+                return bundled_ffmpeg
     
-    # Return default name and let subprocess handle the error
-    return "ffmpeg"
+    # Return None to indicate FFmpeg was not found
+    return None
 
 def get_temp_directory():
     """Get a writable temporary directory."""
@@ -148,6 +170,19 @@ def download_m3u8_video(m3u8_url, output_filename, log_callback):
 
         # Get the appropriate FFmpeg path
         ffmpeg_path = get_ffmpeg_path()
+        
+        if not ffmpeg_path:
+            log_callback("ERROR: FFmpeg not found!")
+            log_callback("Please install FFmpeg:")
+            log_callback("1. Download from: https://ffmpeg.org/download.html")
+            log_callback("2. Or install via package manager:")
+            if platform.system() == "Windows":
+                log_callback("   - Using Chocolatey: choco install ffmpeg")
+                log_callback("   - Using Scoop: scoop install ffmpeg")
+                log_callback("3. Or place ffmpeg.exe next to this application")
+            log_callback("4. Restart the application after installation")
+            return
+        
         log_callback(f"Using FFmpeg: {ffmpeg_path}")
         
         ffmpeg_command = [
@@ -155,19 +190,30 @@ def download_m3u8_video(m3u8_url, output_filename, log_callback):
             '-c', 'copy', '-y', output_filename
         ]
 
-        # Use subprocess.run to execute FFmpeg
-        result = subprocess.run(ffmpeg_command, capture_output=True, text=True, encoding='utf-8', errors='ignore')
+        try:
+            # Use subprocess.run to execute FFmpeg
+            result = subprocess.run(ffmpeg_command, capture_output=True, text=True, 
+                                  encoding='utf-8', errors='ignore', timeout=300)
 
-        if result.returncode == 0:
-            log_callback(f"Video saved successfully as {output_filename}")
-        else:
-            log_callback("ERROR: FFmpeg failed to combine video segments.")
-            log_callback(f"FFmpeg stderr: {result.stderr}")
-            # Try to find FFmpeg if not in PATH
-            if "No such file or directory" in result.stderr or "not found" in result.stderr or "command not found" in result.stderr:
-                log_callback("\nERROR: FFmpeg not found. Please install FFmpeg and ensure it's in your system's PATH.")
-                log_callback("Download FFmpeg from: https://ffmpeg.org/download.html")
-                log_callback("Or place ffmpeg executable next to this application.")
+            if result.returncode == 0:
+                log_callback(f"Video saved successfully as {output_filename}")
+            else:
+                log_callback("ERROR: FFmpeg failed to combine video segments.")
+                log_callback(f"FFmpeg stderr: {result.stderr}")
+                log_callback("This might be due to:")
+                log_callback("1. Corrupted video segments")
+                log_callback("2. Insufficient disk space")
+                log_callback("3. File permissions issues")
+                
+        except subprocess.TimeoutExpired:
+            log_callback("ERROR: FFmpeg operation timed out.")
+            log_callback("This might happen with very large files.")
+        except FileNotFoundError:
+            log_callback("ERROR: FFmpeg executable not found at the specified path.")
+            log_callback(f"Path checked: {ffmpeg_path}")
+            log_callback("Please ensure FFmpeg is properly installed.")
+        except Exception as e:
+            log_callback(f"ERROR: Unexpected error running FFmpeg: {e}")
 
     except requests.exceptions.RequestException as e:
         log_callback(f"Error fetching the M3U8 playlist: {e}")
@@ -224,17 +270,41 @@ class App(tk.Tk):
         """Test if FFmpeg is available and show status."""
         try:
             ffmpeg_path = get_ffmpeg_path()
+            
+            if not ffmpeg_path:
+                self.log("❌ FFmpeg not found!")
+                self.log("📥 Installation options:")
+                if platform.system() == "Windows":
+                    self.log("  • Download: https://ffmpeg.org/download.html")
+                    self.log("  • Chocolatey: choco install ffmpeg")
+                    self.log("  • Scoop: scoop install ffmpeg")
+                    self.log("  • Place ffmpeg.exe next to this application")
+                elif platform.system() == "Darwin":
+                    self.log("  • Homebrew: brew install ffmpeg")
+                    self.log("  • MacPorts: sudo port install ffmpeg")
+                else:
+                    self.log("  • Ubuntu/Debian: sudo apt install ffmpeg")
+                    self.log("  • Fedora: sudo dnf install ffmpeg")
+                return
+            
+            # Test FFmpeg execution
             result = subprocess.run([ffmpeg_path, '-version'], 
-                                  capture_output=True, text=True, timeout=5)
+                                  capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 version_line = result.stdout.split('\n')[0]
-                self.log(f"✓ FFmpeg found: {version_line}")
+                self.log(f"✅ FFmpeg ready: {version_line}")
+                self.log(f"📍 Location: {ffmpeg_path}")
             else:
-                self.log("⚠ FFmpeg found but may have issues")
+                self.log(f"⚠️ FFmpeg found but returned error: {result.stderr}")
+                
+        except subprocess.TimeoutExpired:
+            self.log("⚠️ FFmpeg test timed out")
+        except FileNotFoundError:
+            self.log("❌ FFmpeg executable not found")
+            self.log("Please ensure FFmpeg is properly installed")
         except Exception as e:
-            self.log("⚠ FFmpeg not found or not working properly")
-            self.log("Please install FFmpeg for video processing")
-            self.log("Download from: https://ffmpeg.org/download.html")
+            self.log(f"⚠️ FFmpeg test failed: {e}")
+            self.log("Please check FFmpeg installation")
 
     def log(self, message):
         """Appends a message to the log area in a thread-safe way."""

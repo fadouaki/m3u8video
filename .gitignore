@@ -194,3 +194,6 @@ build_simple.py
 build_improved.py
 version_info.txt
 ANTIVIRUS_README.md
+# Downloaded FFmpeg during build
+ffmpeg.exe
+ffmpeg
