@@ -9,7 +9,7 @@ import tempfile
 
 def download_ffmpeg_windows():
     """Download FFmpeg for Windows if not found locally."""
-    print("📥 FFmpeg not found locally. Downloading...")
+    print("FFmpeg not found locally. Downloading...")
     
     # FFmpeg download URL (static build from gyan.dev)
     ffmpeg_url = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.4.4-essentials_build.zip"
@@ -43,7 +43,7 @@ def download_ffmpeg_windows():
                 ffmpeg_source = os.path.join(root, 'ffmpeg.exe')
                 ffmpeg_dest = os.path.join(os.getcwd(), 'ffmpeg.exe')
                 shutil.copy2(ffmpeg_source, ffmpeg_dest)
-                print(f"✅ FFmpeg downloaded to: {ffmpeg_dest}")
+                print(f"SUCCESS: FFmpeg downloaded to: {ffmpeg_dest}")
                 return ffmpeg_dest
         
         raise Exception("FFmpeg.exe not found in downloaded archive")
@@ -75,13 +75,13 @@ def find_or_download_ffmpeg():
     for name in ffmpeg_names:
         path = shutil.which(name)
         if path:
-            print(f"✅ Found FFmpeg in PATH: {path}")
+            print(f"SUCCESS: Found FFmpeg in PATH: {path}")
             return path
     
     # Check local paths
     for path in local_paths:
         if os.path.exists(path):
-            print(f"✅ Found FFmpeg locally: {path}")
+            print(f"SUCCESS: Found FFmpeg locally: {path}")
             return path
     
     # Download if not found (Windows only for now)
@@ -89,10 +89,10 @@ def find_or_download_ffmpeg():
         try:
             return download_ffmpeg_windows()
         except Exception as e:
-            print(f"❌ Failed to download FFmpeg: {e}")
+            print(f"ERROR: Failed to download FFmpeg: {e}")
             return None
     else:
-        print(f"⚠️  FFmpeg not found on {system}")
+        print(f"WARNING: FFmpeg not found on {system}")
         if system == "Darwin":
             print("   Install with: brew install ffmpeg")
         else:
@@ -103,22 +103,22 @@ def main():
     """Main build function with auto-bundle."""
     system = platform.system()
     
-    print("🚀 M3U8 Downloader - Auto-Bundle Build")
+    print("M3U8 Downloader - Auto-Bundle Build")
     print("=" * 50)
     
     # Step 1: Ensure FFmpeg is available
-    print("\n🔍 Step 1: Locating FFmpeg...")
+    print("\nStep 1: Locating FFmpeg...")
     ffmpeg_path = find_or_download_ffmpeg()
     
     if not ffmpeg_path:
-        print("❌ Could not locate or download FFmpeg")
+        print("ERROR: Could not locate or download FFmpeg")
         print("   The app will still build, but users will need FFmpeg installed")
         ffmpeg_path = None
     else:
-        print(f"✅ FFmpeg ready: {ffmpeg_path}")
+        print(f"SUCCESS: FFmpeg ready: {ffmpeg_path}")
     
     # Step 2: Prepare build options
-    print("\n🔨 Step 2: Preparing build configuration...")
+    print("\nStep 2: Preparing build configuration...")
     
     if system == "Windows":
         data_sep = ';'
@@ -156,7 +156,7 @@ def main():
     # Bundle FFmpeg if available
     if ffmpeg_path:
         build_options.append(f'--add-binary={ffmpeg_path}{data_sep}.')
-        print("🎯 FFmpeg will be bundled with the executable!")
+        print("INFO: FFmpeg will be bundled with the executable!")
     
     # Add icon if available
     if icon_arg and (
@@ -190,59 +190,59 @@ def main():
     print("Build configuration:")
     for option in build_options:
         if '--add-binary=' in option and 'ffmpeg' in option:
-            print(f"  {option} ← 🎯 FFmpeg bundled!")
+            print(f"  {option} <- FFmpeg bundled!")
         else:
             print(f"  {option}")
     
     # Step 3: Build the application
-    print(f"\n🔨 Step 3: Building executable...")
+    print(f"\nStep 3: Building executable...")
     
     try:
         PyInstaller.__main__.run(build_options)
         
         # Step 4: Verify the build
-        print(f"\n✅ Build completed successfully!")
+        print(f"\nSUCCESS: Build completed successfully!")
         
         if system == "Windows":
             exe_path = "dist/M3U8Downloader.exe"
-            print(f"📁 Executable: {exe_path}")
+            print(f"Executable: {exe_path}")
         elif system == "Darwin":
             app_path = "dist/M3U8Downloader.app"
-            print(f"📁 Application: {app_path}")
+            print(f"Application: {app_path}")
         else:
             exe_path = "dist/M3U8Downloader"
-            print(f"📁 Executable: {exe_path}")
+            print(f"Executable: {exe_path}")
         
         # Check file size
         if system == "Windows" and os.path.exists(exe_path):
             size_mb = os.path.getsize(exe_path) / (1024 * 1024)
-            print(f"📊 File size: {size_mb:.1f} MB")
+            print(f"File size: {size_mb:.1f} MB")
         
         if ffmpeg_path:
-            print(f"\n🎉 SUCCESS: Self-contained executable created!")
-            print(f"✅ FFmpeg is bundled inside")
-            print(f"✅ No additional software required for users")
-            print(f"✅ Ready for distribution")
+            print(f"\nSUCCESS: Self-contained executable created!")
+            print(f"- FFmpeg is bundled inside")
+            print(f"- No additional software required for users")
+            print(f"- Ready for distribution")
         else:
-            print(f"\n⚠️  Build completed, but FFmpeg not bundled")
+            print(f"\nWARNING: Build completed, but FFmpeg not bundled")
             print(f"   Users will need to install FFmpeg separately")
         
         return True
         
     except Exception as e:
-        print(f"\n❌ Build failed: {e}")
+        print(f"\nERROR: Build failed: {e}")
         return False
 
 if __name__ == "__main__":
     success = main()
     
     if success:
-        print("\n🎯 Next Steps:")
+        print("\nNext Steps:")
         print("1. Test the executable on a clean system")
         print("2. Distribute the single file")
         print("3. Users can run it immediately!")
     else:
-        print("\n🔧 Try:")
+        print("\nTroubleshooting:")
         print("1. Install missing dependencies")
         print("2. Check internet connection (for FFmpeg download)")
         print("3. Run as administrator if needed")
