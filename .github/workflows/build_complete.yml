@@ -22,39 +22,98 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller==5.13.2  # Use specific PyInstaller version
+          pip install pyinstaller==5.13.2 requests  # Use specific PyInstaller version
 
-      - name: Download FFmpeg for bundling
+      - name: Try multiple Windows build approaches
         run: |
-          # Download FFmpeg to ensure it gets bundled
+          echo "Attempting multiple build strategies for Windows..."
+          
+          # Strategy 1: Try the reliable builder (downloads FFmpeg automatically)
+          echo "=== Strategy 1: Reliable Builder ==="
+          python build_windows_reliable.py
+          if (Test-Path "dist/M3U8Downloader/M3U8Downloader.exe") {
+            $size = (Get-Item "dist/M3U8Downloader/M3U8Downloader.exe").Length / 1MB
+            Write-Host "Strategy 1 SUCCESS: $([math]::Round($size, 1)) MB"
+            if ($size -gt 80) {
+              Write-Host "SUCCESS: Large size suggests FFmpeg bundled"
+              exit 0
+            }
+          }
+          
+          # Strategy 2: Try spec file builder  
+          echo "=== Strategy 2: Spec File Builder ==="
+          python build_windows_spec.py
+          if (Test-Path "dist/M3U8Downloader/M3U8Downloader.exe") {
+            $size = (Get-Item "dist/M3U8Downloader/M3U8Downloader.exe").Length / 1MB
+            Write-Host "Strategy 2 SUCCESS: $([math]::Round($size, 1)) MB"
+            if ($size -gt 80) {
+              Write-Host "SUCCESS: Large size suggests FFmpeg bundled"
+              exit 0
+            }
+          }
+          
+          # Strategy 3: Manual FFmpeg download + simple build
+          echo "=== Strategy 3: Manual Download + Build ==="
+          # Download FFmpeg manually
           $url = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.4.4-essentials_build.zip"
           Invoke-WebRequest -Uri $url -OutFile "ffmpeg.zip"
-          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "."
-          Get-ChildItem -Path "." -Name "*ffmpeg*" -Recurse
-          # Find and copy ffmpeg.exe to current directory
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "." -Force
           $ffmpegExe = Get-ChildItem -Path "." -Name "ffmpeg.exe" -Recurse | Select-Object -First 1
           if ($ffmpegExe) {
-            Copy-Item -Path $ffmpegExe.FullName -Destination ".\ffmpeg.exe"
-            Write-Host "FFmpeg downloaded and ready for bundling"
+            Copy-Item -Path $ffmpegExe.FullName -Destination ".\ffmpeg.exe" -Force
+            $ffmpegSize = (Get-Item ".\ffmpeg.exe").Length / 1MB
+            Write-Host "Downloaded FFmpeg: $([math]::Round($ffmpegSize, 1)) MB"
+            
+            # Build with manual FFmpeg
+            python build.py
+            if (Test-Path "dist/M3U8Downloader/M3U8Downloader.exe") {
+              $size = (Get-Item "dist/M3U8Downloader/M3U8Downloader.exe").Length / 1MB
+              Write-Host "Strategy 3 SUCCESS: $([math]::Round($size, 1)) MB"
+            }
           }
+          
+          Write-Host "Completed all build strategies"
 
-      - name: Build reliable Windows app
+      - name: Verify Windows build results
         run: |
-          python build_windows_reliable.py
-
-      - name: Test executable (basic check)
-        run: |
-          if (Test-Path "dist/M3U8Downloader/M3U8Downloader.exe") {
-            Write-Host "SUCCESS: Directory build created"
-            $size = (Get-Item "dist/M3U8Downloader/M3U8Downloader.exe").Length / 1MB
-            Write-Host "File size: $([math]::Round($size, 1)) MB"
-          } elseif (Test-Path "dist/M3U8Downloader-Console/M3U8Downloader-Console.exe") {
-            Write-Host "SUCCESS: Console build created"
-            $size = (Get-Item "dist/M3U8Downloader-Console/M3U8Downloader-Console.exe").Length / 1MB
-            Write-Host "File size: $([math]::Round($size, 1)) MB"
-          } else {
-            Write-Host "ERROR: No executable found"
+          echo "=== Windows Build Verification ==="
+          
+          # Check all possible output locations
+          $found = $false
+          $locations = @(
+            "dist/M3U8Downloader/M3U8Downloader.exe",
+            "dist/M3U8Downloader-Console/M3U8Downloader-Console.exe", 
+            "dist/M3U8Downloader-SingleFile.exe"
+          )
+          
+          foreach ($location in $locations) {
+            if (Test-Path $location) {
+              $size = (Get-Item $location).Length / 1MB
+              Write-Host "FOUND: $location ($([math]::Round($size, 1)) MB)"
+              
+              # Check if FFmpeg is bundled
+              $dir = Split-Path $location -Parent
+              $ffmpegPath = Join-Path $dir "ffmpeg.exe"
+              if (Test-Path $ffmpegPath) {
+                $ffmpegSize = (Get-Item $ffmpegPath).Length / 1MB
+                Write-Host "  + FFmpeg bundled: $([math]::Round($ffmpegSize, 1)) MB"
+              }
+              
+              $found = $true
+            }
+          }
+          
+          if (-not $found) {
+            Write-Host "ERROR: No Windows executable found"
+            Write-Host "Contents of dist directory:"
+            if (Test-Path "dist") {
+              Get-ChildItem -Path "dist" -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
+            } else {
+              Write-Host "  (dist directory does not exist)"
+            }
             exit 1
+          } else {
+            Write-Host "SUCCESS: Windows build verification completed"
           }
 
       - name: Upload Windows Artifact
