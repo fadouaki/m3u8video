@@ -20,16 +20,15 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+          # --- THIS IS THE FIX ---
+          # Force 64-bit Python to create a 64-bit executable
+          architecture: 'x64'
 
       - name: Upgrade pip and install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade setuptools wheel
           pip install -r requirements.txt
-
-      - name: Test build environment
-        run: |
-          python test_environment.py
 
       - name: Test build environment
         run: |
@@ -51,10 +50,7 @@ jobs:
             Write-Host "SUCCESS: Windows build created ($([math]::Round($size, 1)) MB)"
             
             # Check if FFmpeg is bundled
-            if (Test-Path "dist/M3U8Downloader/_internal/ffmpeg.exe") {
-              $ffmpegSize = (Get-Item "dist/M3U8Downloader/_internal/ffmpeg.exe").Length / 1MB
-              Write-Host "SUCCESS: FFmpeg bundled ($([math]::Round($ffmpegSize, 1)) MB)"
-            } elseif (Test-Path "dist/M3U8Downloader/ffmpeg.exe") {
+            if (Test-Path "dist/M3U8Downloader/ffmpeg.exe") {
               $ffmpegSize = (Get-Item "dist/M3U8Downloader/ffmpeg.exe").Length / 1MB
               Write-Host "SUCCESS: FFmpeg bundled ($([math]::Round($ffmpegSize, 1)) MB)"
             } else {
@@ -83,6 +79,7 @@ jobs:
           path: dist/M3U8Downloader/
           retention-days: 30
 
+  # No changes needed for macOS or Linux jobs
   build-macos:
     runs-on: macos-latest
     steps:
@@ -118,25 +115,22 @@ jobs:
 
       - name: Verify macOS build
         run: |
-          if [ -f "dist/M3U8Downloader/M3U8Downloader" ]; then
-            size=$(du -sh "dist/M3U8Downloader" | cut -f1)
+          if [ -d "dist/M3U8Downloader.app" ]; then
+            size=$(du -sh "dist/M3U8Downloader.app" | cut -f1)
             echo "SUCCESS: macOS app created (${size})"
             
             # Check if FFmpeg is bundled
-            if [ -f "dist/M3U8Downloader/_internal/ffmpeg" ]; then
-              ffmpeg_size=$(du -sh "dist/M3U8Downloader/_internal/ffmpeg" | cut -f1)
-              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
-            elif [ -f "dist/M3U8Downloader/ffmpeg" ]; then
-              ffmpeg_size=$(du -sh "dist/M3U8Downloader/ffmpeg" | cut -f1)
+            if [ -f "dist/M3U8Downloader.app/Contents/MacOS/ffmpeg" ]; then
+              ffmpeg_size=$(du -sh "dist/M3U8Downloader.app/Contents/MacOS/ffmpeg" | cut -f1)
               echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
             else
               echo "WARNING: FFmpeg not found in app bundle"
-              find "dist/M3U8Downloader" -name "*ffmpeg*" -type f
+              find "dist/M3U8Downloader.app" -name "*ffmpeg*" -type f
             fi
             
             # List contents for debugging
-            echo "Contents of dist/M3U8Downloader:"
-            ls -la "dist/M3U8Downloader"
+            echo "Contents of dist/M3U8Downloader.app:"
+            ls -la "dist/M3U8Downloader.app/Contents/MacOS"
           else
             echo "ERROR: macOS executable not found"
             echo "Contents of dist folder:"
@@ -148,7 +142,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: M3U8Downloader-macOS
-          path: dist/M3U8Downloader/
+          path: dist/M3U8Downloader.app/
           retention-days: 30
 
   build-linux:
@@ -193,10 +187,7 @@ jobs:
             chmod +x "dist/M3U8Downloader/M3U8Downloader"
             
             # Check if FFmpeg is bundled
-            if [ -f "dist/M3U8Downloader/_internal/ffmpeg" ]; then
-              ffmpeg_size=$(du -sh "dist/M3U8Downloader/_internal/ffmpeg" | cut -f1)
-              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
-            elif [ -f "dist/M3U8Downloader/ffmpeg" ]; then
+            if [ -f "dist/M3U8Downloader/ffmpeg" ]; then
               ffmpeg_size=$(du -sh "dist/M3U8Downloader/ffmpeg" | cut -f1)
               echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
             else
@@ -237,9 +228,9 @@ jobs:
           echo "All builds include FFmpeg bundled inside - no setup required!" >> release_notes.md
           echo "" >> release_notes.md
           echo "### Downloads:" >> release_notes.md
-          echo "- **Windows**: Download and extract the M3U8Downloader-Windows folder, run M3U8Downloader.exe" >> release_notes.md
-          echo "- **macOS**: Download and extract M3U8Downloader-macOS, run ./M3U8Downloader" >> release_notes.md  
-          echo "- **Linux**: Download and extract M3U8Downloader-Linux, run ./M3U8Downloader" >> release_notes.md
+          echo "- **Windows**: Download and extract the M3U8Downloader-Windows.zip, open the folder, and run M3U8Downloader.exe" >> release_notes.md
+          echo "- **macOS**: Download and extract the M3U8Downloader-macOS.zip and run the M3U8Downloader app." >> release_notes.md  
+          echo "- **Linux**: Download and extract the M3U8Downloader-Linux.zip, open the folder, and run the M3U8Downloader executable." >> release_notes.md
           echo "" >> release_notes.md
           echo "### Features:" >> release_notes.md
           echo "- Self-contained (FFmpeg included)" >> release_notes.md
