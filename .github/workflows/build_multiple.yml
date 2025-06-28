@@ -33,12 +33,12 @@ jobs:
       - name: Build Windows app (OneFile)
         if: matrix.build-type == 'onefile'
         run: |
-          pyinstaller --onefile --windowed --noupx --strip --name=M3U8Downloader-Portable --icon=app_icon.ico --version-file=version_info_enhanced.txt app.py
+          pyinstaller --onefile --windowed --noupx --strip --name=M3U8Downloader-Portable --icon=app_icon.ico --version-file=version_info.txt app.py
 
       - name: Build Windows app (OneDir)
         if: matrix.build-type == 'onedir'
         run: |
-          pyinstaller --onedir --windowed --noupx --strip --name=M3U8Downloader --icon=app_icon.ico --version-file=version_info_enhanced.txt app.py
+          pyinstaller --onedir --windowed --noupx --strip --name=M3U8Downloader --icon=app_icon.ico --version-file=version_info.txt app.py
 
       - name: Create installer (OneDir only)
         if: matrix.build-type == 'onedir'

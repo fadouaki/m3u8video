@@ -5,7 +5,7 @@ A powerful, cross-platform desktop application for downloading video streams fro
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20|%20macOS%20|%20Linux-lightgrey.svg)
-![Build Status](https://github.com/yourusername/m3u8-downloader/workflows/Build/badge.svg)
+![Build Status](https://github.com/fadouaki/m3u8-downloader/workflows/Build/badge.svg)
 
 ## ✨ Features
 
@@ -28,23 +28,11 @@ A powerful, cross-platform desktop application for downloading video streams fro
 
 ## 🚀 Quick Start
 
-### Download Pre-built Executables
-
-#### Windows
-1. Go to [Releases](../../releases/latest)
-2. Download `M3U8Downloader-Windows.exe`
-3. **⚠️ Antivirus Notice**: See [Antivirus Information](#-antivirus-information) below
-
-#### macOS
-1. Go to [Releases](../../releases/latest)
-2. Download `M3U8Downloader-macOS.dmg`
-3. Install and run the application
-
 ### Run from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/m3u8-downloader.git
+git clone https://github.com/fadouaki/m3u8-downloader.git
 cd m3u8-downloader
 
 # Install dependencies
@@ -99,8 +87,8 @@ sudo apt install ffmpeg
 
 ### Example URLs
 ```
-https://example.com/playlist.m3u8
-https://stream.example.com/hls/video/playlist.m3u8
+http://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8
+https://assets.afcdn.com/video49/20210722/v_645516.m3u8
 ```
 
 ## 🛠️ Development
@@ -109,7 +97,6 @@ https://stream.example.com/hls/video/playlist.m3u8
 ```
 m3u8-downloader/
 ├── app.py                    # Main GUI application
-├── m3u8vi.py                 # CLI reference implementation
 ├── build.py                  # PyInstaller build script
 ├── requirements.txt          # Python dependencies
 ├── version_info.txt          # Windows version information
@@ -136,7 +123,7 @@ The executable will be created in the `dist/` folder.
 ### Development Setup
 ```bash
 # Clone and enter directory
-git clone https://github.com/yourusername/m3u8-downloader.git
+git clone https://github.com/fadouaki/m3u8-downloader.git
 cd m3u8-downloader
 
 # Create virtual environment (recommended)
@@ -170,34 +157,6 @@ python app.py
 3. **Build from Source**: Compile your own version using the provided build script
 
 We're working on code signing certificates to eliminate this issue in future releases.
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### "FFmpeg not found"
-- **Solution**: Install FFmpeg using the instructions above
-- **Check**: Run `ffmpeg -version` in terminal to verify installation
-
-#### "Read-only file system" Error
-- **Solution**: The app automatically handles this, but ensure you have write permissions to your chosen download location
-
-#### Download Fails
-- **Check**: Verify the M3U8 URL is accessible
-- **Network**: Ensure stable internet connection
-- **Firewall**: Check if your firewall is blocking the application
-
-#### GUI Not Responsive
-- The app uses threading to prevent freezing during downloads
-- Force quit and restart if the application becomes unresponsive
-
-### Getting Help
-- 📖 Check existing [Issues](../../issues)
-- 🆕 Create a [New Issue](../../issues/new) with:
-  - Operating system and version
-  - Python version (if running from source)
-  - Error message and steps to reproduce
-  - Sample M3U8 URL (if safe to share)
 
 ## 📚 Technical Details
 
@@ -247,20 +206,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **python-m3u8** - M3U8 playlist parsing
 - **PyInstaller** - Executable building
 - **Tkinter** - GUI framework
-
-## 📊 Project Stats
-
-![GitHub stars](https://img.shields.io/github/stars/yourusername/m3u8-downloader)
-![GitHub forks](https://img.shields.io/github/forks/yourusername/m3u8-downloader)
-![GitHub issues](https://img.shields.io/github/issues/yourusername/m3u8-downloader)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/yourusername/m3u8-downloader)
-
-## 🔗 Links
-
-- **Documentation**: [Wiki](../../wiki)
-- **Bug Reports**: [Issues](../../issues)
-- **Feature Requests**: [Issues](../../issues)
-- **Releases**: [Latest Release](../../releases/latest)
 
 ---
 
