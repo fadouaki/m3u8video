@@ -48,56 +48,70 @@ def download_ffmpeg_windows():
         
         raise Exception("FFmpeg.exe not found in downloaded archive")
 
-def find_or_download_ffmpeg():
-    """Find FFmpeg locally or download it automatically."""
+def get_bundleable_ffmpeg():
+    """Get FFmpeg that can be bundled with PyInstaller."""
     system = platform.system()
     
-    # First, check if FFmpeg is already available
+    # For bundling, we need a local copy that we can redistribute
+    # First check if we already have a local bundleable copy
     if system == "Windows":
-        ffmpeg_names = ["ffmpeg.exe"]
-        local_paths = [
-            "./ffmpeg.exe",
-            "ffmpeg.exe",
-            r"C:\ffmpeg\bin\ffmpeg.exe",
-            r"C:\Program Files\ffmpeg\bin\ffmpeg.exe",
-            r"C:\ProgramData\chocolatey\bin\ffmpeg.exe"
-        ]
+        local_bundleable = "./ffmpeg.exe"
     else:
-        ffmpeg_names = ["ffmpeg"]
-        local_paths = [
-            "./ffmpeg",
-            "/opt/homebrew/bin/ffmpeg",
-            "/usr/local/bin/ffmpeg",
-            "/usr/bin/ffmpeg"
-        ]
+        local_bundleable = "./ffmpeg"
     
-    # Check system PATH
-    for name in ffmpeg_names:
-        path = shutil.which(name)
-        if path:
-            print(f"SUCCESS: Found FFmpeg in PATH: {path}")
-            return path
+    if os.path.exists(local_bundleable):
+        print(f"SUCCESS: Found bundleable FFmpeg: {local_bundleable}")
+        return local_bundleable
     
-    # Check local paths
-    for path in local_paths:
-        if os.path.exists(path):
-            print(f"SUCCESS: Found FFmpeg locally: {path}")
-            return path
-    
-    # Download if not found (Windows only for now)
+    # For Windows, download FFmpeg
     if system == "Windows":
         try:
             return download_ffmpeg_windows()
         except Exception as e:
             print(f"ERROR: Failed to download FFmpeg: {e}")
             return None
-    else:
-        print(f"WARNING: FFmpeg not found on {system}")
-        if system == "Darwin":
-            print("   Install with: brew install ffmpeg")
+    
+    # For macOS, copy system FFmpeg to local directory for bundling
+    elif system == "Darwin":
+        system_ffmpeg = shutil.which("ffmpeg")
+        if not system_ffmpeg:
+            # Try common paths
+            common_paths = [
+                "/opt/homebrew/bin/ffmpeg",
+                "/usr/local/bin/ffmpeg"
+            ]
+            for path in common_paths:
+                if os.path.exists(path):
+                    system_ffmpeg = path
+                    break
+        
+        if system_ffmpeg:
+            print(f"Found system FFmpeg: {system_ffmpeg}")
+            print("Copying to local directory for bundling...")
+            shutil.copy2(system_ffmpeg, "./ffmpeg")
+            print(f"SUCCESS: FFmpeg copied for bundling: ./ffmpeg")
+            return "./ffmpeg"
         else:
+            print("ERROR: FFmpeg not found on macOS")
+            print("   Install with: brew install ffmpeg")
+            return None
+    
+    # For Linux, copy system FFmpeg to local directory for bundling
+    else:
+        system_ffmpeg = shutil.which("ffmpeg")
+        if not system_ffmpeg:
+            system_ffmpeg = "/usr/bin/ffmpeg"
+        
+        if os.path.exists(system_ffmpeg):
+            print(f"Found system FFmpeg: {system_ffmpeg}")
+            print("Copying to local directory for bundling...")
+            shutil.copy2(system_ffmpeg, "./ffmpeg")
+            print(f"SUCCESS: FFmpeg copied for bundling: ./ffmpeg")
+            return "./ffmpeg"
+        else:
+            print("ERROR: FFmpeg not found on Linux")
             print("   Install with: sudo apt install ffmpeg")
-        return None
+            return None
 
 def main():
     """Main build function with auto-bundle."""
@@ -106,9 +120,9 @@ def main():
     print("M3U8 Downloader - Auto-Bundle Build")
     print("=" * 50)
     
-    # Step 1: Ensure FFmpeg is available
-    print("\nStep 1: Locating FFmpeg...")
-    ffmpeg_path = find_or_download_ffmpeg()
+    # Step 1: Ensure FFmpeg is available for bundling
+    print("\nStep 1: Preparing FFmpeg for bundling...")
+    ffmpeg_path = get_bundleable_ffmpeg()
     
     if not ffmpeg_path:
         print("ERROR: Could not locate or download FFmpeg")
@@ -134,7 +148,7 @@ def main():
     build_options = [
         'app.py',
         '--name=M3U8Downloader',
-        '--onefile',
+        '--onedir',   # Changed from --onefile to fix DLL issues
         '--windowed',
         '--clean',
         '--noupx',  # Prevents DLL issues on Windows
@@ -204,19 +218,28 @@ def main():
         print(f"\nSUCCESS: Build completed successfully!")
         
         if system == "Windows":
-            exe_path = "dist/M3U8Downloader.exe"
+            exe_path = "dist/M3U8Downloader/M3U8Downloader.exe"  # Fixed for --onedir
             print(f"Executable: {exe_path}")
         elif system == "Darwin":
             app_path = "dist/M3U8Downloader.app"
+            exe_path = "dist/M3U8Downloader.app/Contents/MacOS/M3U8Downloader"  # Fixed for actual executable
             print(f"Application: {app_path}")
         else:
-            exe_path = "dist/M3U8Downloader"
+            exe_path = "dist/M3U8Downloader/M3U8Downloader"  # Fixed for --onedir
             print(f"Executable: {exe_path}")
         
         # Check file size
-        if system == "Windows" and os.path.exists(exe_path):
+        if os.path.exists(exe_path):
             size_mb = os.path.getsize(exe_path) / (1024 * 1024)
             print(f"File size: {size_mb:.1f} MB")
+            
+            # If FFmpeg was bundled, size should be much larger
+            if ffmpeg_path and size_mb < 80:
+                print(f"WARNING: Size seems small for bundled FFmpeg. Check if bundling worked.")
+            elif ffmpeg_path and size_mb > 80:
+                print(f"CONFIRMED: FFmpeg appears to be successfully bundled (large size)")
+        else:
+            print(f"WARNING: Could not find executable at {exe_path}")
         
         if ffmpeg_path:
             print(f"\nSUCCESS: Self-contained executable created!")

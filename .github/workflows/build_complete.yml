@@ -17,25 +17,43 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.10  # Use Python 3.10 for better PyInstaller compatibility
 
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
-          pip install pyinstaller requests
+          pip install pyinstaller==5.13.2  # Use specific PyInstaller version
 
-      - name: Build self-contained Windows app
+      - name: Download FFmpeg for bundling
         run: |
-          python build.py
+          # Download FFmpeg to ensure it gets bundled
+          $url = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.4.4-essentials_build.zip"
+          Invoke-WebRequest -Uri $url -OutFile "ffmpeg.zip"
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "."
+          Get-ChildItem -Path "." -Name "*ffmpeg*" -Recurse
+          # Find and copy ffmpeg.exe to current directory
+          $ffmpegExe = Get-ChildItem -Path "." -Name "ffmpeg.exe" -Recurse | Select-Object -First 1
+          if ($ffmpegExe) {
+            Copy-Item -Path $ffmpegExe.FullName -Destination ".\ffmpeg.exe"
+            Write-Host "FFmpeg downloaded and ready for bundling"
+          }
+
+      - name: Build reliable Windows app
+        run: |
+          python build_windows_reliable.py
 
       - name: Test executable (basic check)
         run: |
-          if (Test-Path "dist/M3U8Downloader.exe") {
-            Write-Host "✅ Executable created successfully"
-            $size = (Get-Item "dist/M3U8Downloader.exe").Length / 1MB
-            Write-Host "📊 File size: $([math]::Round($size, 1)) MB"
+          if (Test-Path "dist/M3U8Downloader/M3U8Downloader.exe") {
+            Write-Host "SUCCESS: Directory build created"
+            $size = (Get-Item "dist/M3U8Downloader/M3U8Downloader.exe").Length / 1MB
+            Write-Host "File size: $([math]::Round($size, 1)) MB"
+          } elseif (Test-Path "dist/M3U8Downloader-Console/M3U8Downloader-Console.exe") {
+            Write-Host "SUCCESS: Console build created"
+            $size = (Get-Item "dist/M3U8Downloader-Console/M3U8Downloader-Console.exe").Length / 1MB
+            Write-Host "File size: $([math]::Round($size, 1)) MB"
           } else {
-            Write-Host "❌ Executable not found"
+            Write-Host "ERROR: No executable found"
             exit 1
           }
 
@@ -43,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: M3U8Downloader-Windows-Complete
-          path: dist/M3U8Downloader.exe
+          path: dist/
 
   build-macos:
     runs-on: macos-latest

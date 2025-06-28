@@ -4,7 +4,7 @@
 a = Analysis(
     ['app.py'],
     pathex=[],
-    binaries=[('/opt/homebrew/bin/ffmpeg', '.')],
+    binaries=[('./ffmpeg', '.')],
     datas=[('app_icon.ico', '.')],
     hiddenimports=['requests', 'urllib3', 'm3u8', 'tempfile', 'platform', 'threading', 'tkinter.scrolledtext', 'certifi', 'charset_normalizer', 'idna'],
     hookspath=[],
@@ -19,16 +19,13 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='M3U8Downloader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -37,8 +34,17 @@ exe = EXE(
     entitlements_file=None,
     icon=['app_icon.icns'],
 )
-app = BUNDLE(
+coll = COLLECT(
     exe,
+    a.binaries,
+    a.datas,
+    strip=True,
+    upx=False,
+    upx_exclude=[],
+    name='M3U8Downloader',
+)
+app = BUNDLE(
+    coll,
     name='M3U8Downloader.app',
     icon='app_icon.icns',
     bundle_identifier='com.elfadouaki.m3u8downloader',
