@@ -86,11 +86,11 @@ for option in build_options:
 # Run PyInstaller
 try:
     PyInstaller.__main__.run(build_options)
-    print("\n✅ Build completed successfully!")
+    print(" Build completed successfully!")
     print("The executable will be in the 'dist' folder.")
     
     if sys.platform == 'win32':
-        print("\n📝 To reduce antivirus false positives:")
+        print(" To reduce antivirus false positives:")
         print("1. Submit the file to VirusTotal for analysis")
         print("2. Consider code signing for production releases")
         print("3. Build reputation by having users mark as safe")
@@ -101,5 +101,5 @@ try:
         print("  Linux: sudo apt install ffmpeg")
         
 except Exception as e:
-    print(f"\n❌ Build failed: {e}")
+    print(f" Build failed: {e}")
     sys.exit(1)
