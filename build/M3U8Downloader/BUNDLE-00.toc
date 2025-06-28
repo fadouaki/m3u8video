@@ -1,0 +1,3 @@
+([('M3U8Downloader',
+   '/Users/m114/Desktop/Script PY/download m3u8 video/dist/M3U8Downloader',
+   'EXECUTABLE')],)

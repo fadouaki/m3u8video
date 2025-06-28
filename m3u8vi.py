@@ -375,7 +375,7 @@ def main():
     # Option 2: Set URLs directly for VS Code Run button
     else:
         # Replace these with your actual URLs
-        m3u8_url = "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8"
+        m3u8_url = "http://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8"
         output_file = "downloaded_video.mp4"
         temp_dir = None
         
