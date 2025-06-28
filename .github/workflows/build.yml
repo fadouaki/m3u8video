@@ -2,60 +2,188 @@ name: Build M3U8 Downloader
 
 on:
   push:
-    branches: [ master ]  # ← Use your actual branch name
+    branches: [ master, main ]
+  release:
+    types: [published]
   workflow_dispatch:
 
 jobs:
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt pyinstaller
-
-      - name: Install FFmpeg
-        run: |
-          brew install ffmpeg
-
-      - name: Build macOS app
-        run: |
-          python build.py
-
-      - name: Upload macOS Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: macOS-App
-          path: dist/
-
   build-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller==5.13.2 requests
+
+      - name: Build Windows app with FFmpeg
+        run: |
+          python build.py
+
+      - name: Verify Windows build
+        run: |
+          if (Test-Path "dist/M3U8Downloader/M3U8Downloader.exe") {
+            $size = (Get-Item "dist/M3U8Downloader/M3U8Downloader.exe").Length / 1MB
+            Write-Host "SUCCESS: Windows build created ($([math]::Round($size, 1)) MB)"
+            
+            # Check if FFmpeg is bundled
+            if (Test-Path "dist/M3U8Downloader/ffmpeg.exe") {
+              $ffmpegSize = (Get-Item "dist/M3U8Downloader/ffmpeg.exe").Length / 1MB
+              Write-Host "SUCCESS: FFmpeg bundled ($([math]::Round($ffmpegSize, 1)) MB)"
+            } else {
+              Write-Host "WARNING: FFmpeg not found in bundle"
+            }
+          } else {
+            Write-Host "ERROR: Windows executable not found"
+            exit 1
+          }
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: M3U8Downloader-Windows
+          path: dist/M3U8Downloader/
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          pip install -r requirements.txt pyinstaller
+          brew install ffmpeg
 
-      - name: Build Windows app
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller requests
+
+      - name: Build macOS app with FFmpeg
         run: |
           python build.py
 
-      - name: Upload Windows Artifact
+      - name: Verify macOS build
+        run: |
+          if [ -d "dist/M3U8Downloader.app" ]; then
+            size=$(du -m "dist/M3U8Downloader.app" | cut -f1)
+            echo "SUCCESS: macOS app created (${size} MB)"
+            
+            # Check if FFmpeg is bundled
+            if [ -f "dist/M3U8Downloader.app/Contents/Frameworks/ffmpeg" ]; then
+              ffmpeg_size=$(du -m "dist/M3U8Downloader.app/Contents/Frameworks/ffmpeg" | cut -f1)
+              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size} MB)"
+            else
+              echo "WARNING: FFmpeg not found in app bundle"
+            fi
+          else
+            echo "ERROR: macOS app not found"
+            exit 1
+          fi
+
+      - name: Create DMG
+        run: |
+          mkdir -p dmg
+          cp -R dist/M3U8Downloader.app dmg/
+          hdiutil create -volname "M3U8 Downloader" -srcfolder dmg -ov -format UDZO dist/M3U8Downloader.dmg
+
+      - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
-          name: Windows-App
-          path: dist/
+          name: M3U8Downloader-macOS
+          path: |
+            dist/M3U8Downloader.app
+            dist/M3U8Downloader.dmg
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller requests
+
+      - name: Build Linux app with FFmpeg
+        run: |
+          python build.py
+
+      - name: Verify Linux build
+        run: |
+          if [ -f "dist/M3U8Downloader/M3U8Downloader" ]; then
+            size=$(du -m "dist/M3U8Downloader/M3U8Downloader" | cut -f1)
+            echo "SUCCESS: Linux executable created (${size} MB)"
+            chmod +x "dist/M3U8Downloader/M3U8Downloader"
+            
+            # Check if FFmpeg is bundled
+            if [ -f "dist/M3U8Downloader/ffmpeg" ]; then
+              ffmpeg_size=$(du -m "dist/M3U8Downloader/ffmpeg" | cut -f1)
+              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size} MB)"
+            else
+              echo "WARNING: FFmpeg not found in bundle"
+            fi
+          else
+            echo "ERROR: Linux executable not found"
+            exit 1
+          fi
+
+      - name: Upload Linux build
+        uses: actions/upload-artifact@v4
+        with:
+          name: M3U8Downloader-Linux
+          path: dist/M3U8Downloader/
+
+  create-release-info:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Create release summary
+        run: |
+          echo "# M3U8 Downloader - Self-Contained Release" > release_notes.md
+          echo "" >> release_notes.md
+          echo "## Complete & Ready-to-Use" >> release_notes.md
+          echo "All builds include FFmpeg bundled inside - no setup required!" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Downloads:" >> release_notes.md
+          echo "- **Windows**: Download and extract the M3U8Downloader folder, run M3U8Downloader.exe" >> release_notes.md
+          echo "- **macOS**: Download the .dmg file, drag to Applications, run immediately" >> release_notes.md  
+          echo "- **Linux**: Download and extract, run ./M3U8Downloader" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### Features:" >> release_notes.md
+          echo "- Self-contained (FFmpeg included)" >> release_notes.md
+          echo "- Modern dark GUI" >> release_notes.md
+          echo "- Automatic quality selection" >> release_notes.md
+          echo "- Real-time progress tracking" >> release_notes.md
+          echo "- Cross-platform compatibility" >> release_notes.md
+
+      - name: Upload release info
+        uses: actions/upload-artifact@v4
+        with:
+          name: Release-Info
+          path: release_notes.md

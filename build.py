@@ -11,8 +11,8 @@ def download_ffmpeg_windows():
     """Download FFmpeg for Windows if not found locally."""
     print("FFmpeg not found locally. Downloading...")
     
-    # FFmpeg download URL (static build from gyan.dev)
-    ffmpeg_url = "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-4.4.4-essentials_build.zip"
+    # FFmpeg download URL (reliable source)
+    ffmpeg_url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
     
     with tempfile.TemporaryDirectory() as temp_dir:
         zip_path = os.path.join(temp_dir, "ffmpeg.zip")
@@ -31,7 +31,7 @@ def download_ffmpeg_windows():
                     downloaded += len(chunk)
                     if total_size > 0:
                         percent = (downloaded / total_size) * 100
-                        print(f"\r   Progress: {percent:.1f}%", end="", flush=True)
+                        print("\r   Progress: {:.1f}%".format(percent), end="", flush=True)
         
         print("\n   Extracting FFmpeg...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
@@ -43,7 +43,7 @@ def download_ffmpeg_windows():
                 ffmpeg_source = os.path.join(root, 'ffmpeg.exe')
                 ffmpeg_dest = os.path.join(os.getcwd(), 'ffmpeg.exe')
                 shutil.copy2(ffmpeg_source, ffmpeg_dest)
-                print(f"SUCCESS: FFmpeg downloaded to: {ffmpeg_dest}")
+                print("SUCCESS: FFmpeg downloaded to: {}".format(ffmpeg_dest))
                 return ffmpeg_dest
         
         raise Exception("FFmpeg.exe not found in downloaded archive")
@@ -60,7 +60,7 @@ def get_bundleable_ffmpeg():
         local_bundleable = "./ffmpeg"
     
     if os.path.exists(local_bundleable):
-        print(f"SUCCESS: Found bundleable FFmpeg: {local_bundleable}")
+        print("SUCCESS: Found bundleable FFmpeg: {}".format(local_bundleable))
         return local_bundleable
     
     # For Windows, download FFmpeg
@@ -68,7 +68,7 @@ def get_bundleable_ffmpeg():
         try:
             return download_ffmpeg_windows()
         except Exception as e:
-            print(f"ERROR: Failed to download FFmpeg: {e}")
+            print("ERROR: Failed to download FFmpeg: {}".format(e))
             return None
     
     # For macOS, copy system FFmpeg to local directory for bundling
@@ -86,10 +86,10 @@ def get_bundleable_ffmpeg():
                     break
         
         if system_ffmpeg:
-            print(f"Found system FFmpeg: {system_ffmpeg}")
+            print("Found system FFmpeg: {}".format(system_ffmpeg))
             print("Copying to local directory for bundling...")
             shutil.copy2(system_ffmpeg, "./ffmpeg")
-            print(f"SUCCESS: FFmpeg copied for bundling: ./ffmpeg")
+            print("SUCCESS: FFmpeg copied for bundling: ./ffmpeg")
             return "./ffmpeg"
         else:
             print("ERROR: FFmpeg not found on macOS")
@@ -103,10 +103,10 @@ def get_bundleable_ffmpeg():
             system_ffmpeg = "/usr/bin/ffmpeg"
         
         if os.path.exists(system_ffmpeg):
-            print(f"Found system FFmpeg: {system_ffmpeg}")
+            print("Found system FFmpeg: {}".format(system_ffmpeg))
             print("Copying to local directory for bundling...")
             shutil.copy2(system_ffmpeg, "./ffmpeg")
-            print(f"SUCCESS: FFmpeg copied for bundling: ./ffmpeg")
+            print("SUCCESS: FFmpeg copied for bundling: ./ffmpeg")
             return "./ffmpeg"
         else:
             print("ERROR: FFmpeg not found on Linux")
@@ -129,7 +129,7 @@ def main():
         print("   The app will still build, but users will need FFmpeg installed")
         ffmpeg_path = None
     else:
-        print(f"SUCCESS: FFmpeg ready: {ffmpeg_path}")
+        print("SUCCESS: FFmpeg ready: {}".format(ffmpeg_path))
     
     # Step 2: Prepare build options
     print("\nStep 2: Preparing build configuration...")
@@ -169,7 +169,7 @@ def main():
     
     # Bundle FFmpeg if available
     if ffmpeg_path:
-        build_options.append(f'--add-binary={ffmpeg_path}{data_sep}.')
+        build_options.append('--add-binary={}{}.'.format(ffmpeg_path, data_sep))
         print("INFO: FFmpeg will be bundled with the executable!")
     
     # Add icon if available
@@ -181,7 +181,7 @@ def main():
     
     # Add data files
     if os.path.exists('app_icon.ico'):
-        build_options.append(f'--add-data=app_icon.ico{data_sep}.')
+        build_options.append('--add-data=app_icon.ico{}.'.format(data_sep))
     
     # Platform-specific options
     if system == 'Windows':
@@ -199,61 +199,61 @@ def main():
     ]
     
     for module in exclude_modules:
-        build_options.append(f'--exclude-module={module}')
+        build_options.append('--exclude-module={}'.format(module))
     
     print("Build configuration:")
     for option in build_options:
         if '--add-binary=' in option and 'ffmpeg' in option:
-            print(f"  {option} <- FFmpeg bundled!")
+            print("  {} <- FFmpeg bundled!".format(option))
         else:
-            print(f"  {option}")
+            print("  {}".format(option))
     
     # Step 3: Build the application
-    print(f"\nStep 3: Building executable...")
+    print("\nStep 3: Building executable...")
     
     try:
         PyInstaller.__main__.run(build_options)
         
         # Step 4: Verify the build
-        print(f"\nSUCCESS: Build completed successfully!")
+        print("\nSUCCESS: Build completed successfully!")
         
         if system == "Windows":
-            exe_path = "dist/M3U8Downloader/M3U8Downloader.exe"  # Fixed for --onedir
-            print(f"Executable: {exe_path}")
+            exe_path = "dist/M3U8Downloader/M3U8Downloader.exe"
+            print("Executable: {}".format(exe_path))
         elif system == "Darwin":
             app_path = "dist/M3U8Downloader.app"
-            exe_path = "dist/M3U8Downloader.app/Contents/MacOS/M3U8Downloader"  # Fixed for actual executable
-            print(f"Application: {app_path}")
+            exe_path = "dist/M3U8Downloader.app/Contents/MacOS/M3U8Downloader"
+            print("Application: {}".format(app_path))
         else:
-            exe_path = "dist/M3U8Downloader/M3U8Downloader"  # Fixed for --onedir
-            print(f"Executable: {exe_path}")
+            exe_path = "dist/M3U8Downloader/M3U8Downloader"
+            print("Executable: {}".format(exe_path))
         
         # Check file size
         if os.path.exists(exe_path):
             size_mb = os.path.getsize(exe_path) / (1024 * 1024)
-            print(f"File size: {size_mb:.1f} MB")
+            print("File size: {:.1f} MB".format(size_mb))
             
             # If FFmpeg was bundled, size should be much larger
             if ffmpeg_path and size_mb < 80:
-                print(f"WARNING: Size seems small for bundled FFmpeg. Check if bundling worked.")
+                print("WARNING: Size seems small for bundled FFmpeg. Check if bundling worked.")
             elif ffmpeg_path and size_mb > 80:
-                print(f"CONFIRMED: FFmpeg appears to be successfully bundled (large size)")
+                print("CONFIRMED: FFmpeg appears to be successfully bundled (large size)")
         else:
-            print(f"WARNING: Could not find executable at {exe_path}")
+            print("WARNING: Could not find executable at {}".format(exe_path))
         
         if ffmpeg_path:
-            print(f"\nSUCCESS: Self-contained executable created!")
-            print(f"- FFmpeg is bundled inside")
-            print(f"- No additional software required for users")
-            print(f"- Ready for distribution")
+            print("\nSUCCESS: Self-contained executable created!")
+            print("- FFmpeg is bundled inside")
+            print("- No additional software required for users")
+            print("- Ready for distribution")
         else:
-            print(f"\nWARNING: Build completed, but FFmpeg not bundled")
-            print(f"   Users will need to install FFmpeg separately")
+            print("\nWARNING: Build completed, but FFmpeg not bundled")
+            print("   Users will need to install FFmpeg separately")
         
         return True
         
     except Exception as e:
-        print(f"\nERROR: Build failed: {e}")
+        print("\nERROR: Build failed: {}".format(e))
         return False
 
 if __name__ == "__main__":
