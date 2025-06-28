@@ -272,19 +272,19 @@ class App(tk.Tk):
             ffmpeg_path = get_ffmpeg_path()
             
             if not ffmpeg_path:
-                self.log("❌ FFmpeg not found!")
-                self.log("📥 Installation options:")
+                self.log("ERROR: FFmpeg not found!")
+                self.log("Installation options:")
                 if platform.system() == "Windows":
-                    self.log("  • Download: https://ffmpeg.org/download.html")
-                    self.log("  • Chocolatey: choco install ffmpeg")
-                    self.log("  • Scoop: scoop install ffmpeg")
-                    self.log("  • Place ffmpeg.exe next to this application")
+                    self.log("  - Download: https://ffmpeg.org/download.html")
+                    self.log("  - Chocolatey: choco install ffmpeg")
+                    self.log("  - Scoop: scoop install ffmpeg")
+                    self.log("  - Place ffmpeg.exe next to this application")
                 elif platform.system() == "Darwin":
-                    self.log("  • Homebrew: brew install ffmpeg")
-                    self.log("  • MacPorts: sudo port install ffmpeg")
+                    self.log("  - Homebrew: brew install ffmpeg")
+                    self.log("  - MacPorts: sudo port install ffmpeg")
                 else:
-                    self.log("  • Ubuntu/Debian: sudo apt install ffmpeg")
-                    self.log("  • Fedora: sudo dnf install ffmpeg")
+                    self.log("  - Ubuntu/Debian: sudo apt install ffmpeg")
+                    self.log("  - Fedora: sudo dnf install ffmpeg")
                 return
             
             # Test FFmpeg execution
@@ -292,18 +292,18 @@ class App(tk.Tk):
                                   capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 version_line = result.stdout.split('\n')[0]
-                self.log(f"✅ FFmpeg ready: {version_line}")
-                self.log(f"📍 Location: {ffmpeg_path}")
+                self.log(f"SUCCESS: FFmpeg ready: {version_line}")
+                self.log(f"Location: {ffmpeg_path}")
             else:
-                self.log(f"⚠️ FFmpeg found but returned error: {result.stderr}")
+                self.log(f"WARNING: FFmpeg found but returned error: {result.stderr}")
                 
         except subprocess.TimeoutExpired:
-            self.log("⚠️ FFmpeg test timed out")
+            self.log("WARNING: FFmpeg test timed out")
         except FileNotFoundError:
-            self.log("❌ FFmpeg executable not found")
+            self.log("ERROR: FFmpeg executable not found")
             self.log("Please ensure FFmpeg is properly installed")
         except Exception as e:
-            self.log(f"⚠️ FFmpeg test failed: {e}")
+            self.log(f"WARNING: FFmpeg test failed: {e}")
             self.log("Please check FFmpeg installation")
 
     def log(self, message):

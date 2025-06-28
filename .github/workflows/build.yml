@@ -3,6 +3,8 @@ name: Build M3U8 Downloader
 on:
   push:
     branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
   release:
     types: [published]
   workflow_dispatch:
@@ -17,12 +19,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10
+          python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Upgrade pip and install dependencies
         run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade setuptools wheel
           pip install -r requirements.txt
-          pip install pyinstaller==5.13.2 requests
+
+      - name: Test build environment
+        run: |
+          python test_environment.py
+
+      - name: Test build environment
+        run: |
+          python test_environment.py
+
+      - name: Verify PyInstaller installation
+        run: |
+          python -c "import PyInstaller; print('PyInstaller version:', PyInstaller.__version__)"
+          python -c "import PyInstaller.__main__; print('PyInstaller.__main__ imported successfully')"
 
       - name: Build Windows app with FFmpeg
         run: |
@@ -35,14 +51,28 @@ jobs:
             Write-Host "SUCCESS: Windows build created ($([math]::Round($size, 1)) MB)"
             
             # Check if FFmpeg is bundled
-            if (Test-Path "dist/M3U8Downloader/ffmpeg.exe") {
+            if (Test-Path "dist/M3U8Downloader/_internal/ffmpeg.exe") {
+              $ffmpegSize = (Get-Item "dist/M3U8Downloader/_internal/ffmpeg.exe").Length / 1MB
+              Write-Host "SUCCESS: FFmpeg bundled ($([math]::Round($ffmpegSize, 1)) MB)"
+            } elseif (Test-Path "dist/M3U8Downloader/ffmpeg.exe") {
               $ffmpegSize = (Get-Item "dist/M3U8Downloader/ffmpeg.exe").Length / 1MB
               Write-Host "SUCCESS: FFmpeg bundled ($([math]::Round($ffmpegSize, 1)) MB)"
             } else {
               Write-Host "WARNING: FFmpeg not found in bundle"
+              Get-ChildItem "dist/M3U8Downloader" -Recurse -Name "*ffmpeg*"
             }
+            
+            # List contents of dist folder for debugging
+            Write-Host "Contents of dist/M3U8Downloader:"
+            Get-ChildItem "dist/M3U8Downloader" -Recurse | Select-Object Name, Length
           } else {
             Write-Host "ERROR: Windows executable not found"
+            Write-Host "Contents of dist folder:"
+            if (Test-Path "dist") {
+              Get-ChildItem "dist" -Recurse
+            } else {
+              Write-Host "dist folder does not exist"
+            }
             exit 1
           }
 
@@ -51,6 +81,7 @@ jobs:
         with:
           name: M3U8Downloader-Windows
           path: dist/M3U8Downloader/
+          retention-days: 30
 
   build-macos:
     runs-on: macos-latest
@@ -61,16 +92,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
       - name: Install system dependencies
         run: |
           brew install ffmpeg
 
-      - name: Install Python dependencies
+      - name: Upgrade pip and install dependencies
         run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade setuptools wheel
           pip install -r requirements.txt
-          pip install pyinstaller requests
+
+      - name: Test build environment
+        run: |
+          python test_environment.py
+
+      - name: Verify PyInstaller installation
+        run: |
+          python -c "import PyInstaller; print('PyInstaller version:', PyInstaller.__version__)"
 
       - name: Build macOS app with FFmpeg
         run: |
@@ -78,35 +118,38 @@ jobs:
 
       - name: Verify macOS build
         run: |
-          if [ -d "dist/M3U8Downloader.app" ]; then
-            size=$(du -m "dist/M3U8Downloader.app" | cut -f1)
-            echo "SUCCESS: macOS app created (${size} MB)"
+          if [ -f "dist/M3U8Downloader/M3U8Downloader" ]; then
+            size=$(du -sh "dist/M3U8Downloader" | cut -f1)
+            echo "SUCCESS: macOS app created (${size})"
             
             # Check if FFmpeg is bundled
-            if [ -f "dist/M3U8Downloader.app/Contents/Frameworks/ffmpeg" ]; then
-              ffmpeg_size=$(du -m "dist/M3U8Downloader.app/Contents/Frameworks/ffmpeg" | cut -f1)
-              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size} MB)"
+            if [ -f "dist/M3U8Downloader/_internal/ffmpeg" ]; then
+              ffmpeg_size=$(du -sh "dist/M3U8Downloader/_internal/ffmpeg" | cut -f1)
+              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
+            elif [ -f "dist/M3U8Downloader/ffmpeg" ]; then
+              ffmpeg_size=$(du -sh "dist/M3U8Downloader/ffmpeg" | cut -f1)
+              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
             else
               echo "WARNING: FFmpeg not found in app bundle"
+              find "dist/M3U8Downloader" -name "*ffmpeg*" -type f
             fi
+            
+            # List contents for debugging
+            echo "Contents of dist/M3U8Downloader:"
+            ls -la "dist/M3U8Downloader"
           else
-            echo "ERROR: macOS app not found"
+            echo "ERROR: macOS executable not found"
+            echo "Contents of dist folder:"
+            ls -la dist/ || echo "dist folder does not exist"
             exit 1
           fi
-
-      - name: Create DMG
-        run: |
-          mkdir -p dmg
-          cp -R dist/M3U8Downloader.app dmg/
-          hdiutil create -volname "M3U8 Downloader" -srcfolder dmg -ov -format UDZO dist/M3U8Downloader.dmg
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
           name: M3U8Downloader-macOS
-          path: |
-            dist/M3U8Downloader.app
-            dist/M3U8Downloader.dmg
+          path: dist/M3U8Downloader/
+          retention-days: 30
 
   build-linux:
     runs-on: ubuntu-latest
@@ -117,17 +160,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'
 
       - name: Install system dependencies
         run: |
           sudo apt update
           sudo apt install -y ffmpeg
 
-      - name: Install Python dependencies
+      - name: Upgrade pip and install dependencies
         run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade setuptools wheel
           pip install -r requirements.txt
-          pip install pyinstaller requests
+
+      - name: Test build environment
+        run: |
+          python test_environment.py
+
+      - name: Verify PyInstaller installation
+        run: |
+          python -c "import PyInstaller; print('PyInstaller version:', PyInstaller.__version__)"
 
       - name: Build Linux app with FFmpeg
         run: |
@@ -136,19 +188,29 @@ jobs:
       - name: Verify Linux build
         run: |
           if [ -f "dist/M3U8Downloader/M3U8Downloader" ]; then
-            size=$(du -m "dist/M3U8Downloader/M3U8Downloader" | cut -f1)
-            echo "SUCCESS: Linux executable created (${size} MB)"
+            size=$(du -sh "dist/M3U8Downloader" | cut -f1)
+            echo "SUCCESS: Linux executable created (${size})"
             chmod +x "dist/M3U8Downloader/M3U8Downloader"
             
             # Check if FFmpeg is bundled
-            if [ -f "dist/M3U8Downloader/ffmpeg" ]; then
-              ffmpeg_size=$(du -m "dist/M3U8Downloader/ffmpeg" | cut -f1)
-              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size} MB)"
+            if [ -f "dist/M3U8Downloader/_internal/ffmpeg" ]; then
+              ffmpeg_size=$(du -sh "dist/M3U8Downloader/_internal/ffmpeg" | cut -f1)
+              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
+            elif [ -f "dist/M3U8Downloader/ffmpeg" ]; then
+              ffmpeg_size=$(du -sh "dist/M3U8Downloader/ffmpeg" | cut -f1)
+              echo "SUCCESS: FFmpeg bundled (${ffmpeg_size})"
             else
               echo "WARNING: FFmpeg not found in bundle"
+              find "dist/M3U8Downloader" -name "*ffmpeg*" -type f
             fi
+            
+            # List contents for debugging
+            echo "Contents of dist/M3U8Downloader:"
+            ls -la "dist/M3U8Downloader"
           else
             echo "ERROR: Linux executable not found"
+            echo "Contents of dist folder:"
+            ls -la dist/ || echo "dist folder does not exist"
             exit 1
           fi
 
@@ -157,12 +219,16 @@ jobs:
         with:
           name: M3U8Downloader-Linux
           path: dist/M3U8Downloader/
+          retention-days: 30
 
   create-release-info:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
       - name: Create release summary
         run: |
           echo "# M3U8 Downloader - Self-Contained Release" > release_notes.md
@@ -171,9 +237,9 @@ jobs:
           echo "All builds include FFmpeg bundled inside - no setup required!" >> release_notes.md
           echo "" >> release_notes.md
           echo "### Downloads:" >> release_notes.md
-          echo "- **Windows**: Download and extract the M3U8Downloader folder, run M3U8Downloader.exe" >> release_notes.md
-          echo "- **macOS**: Download the .dmg file, drag to Applications, run immediately" >> release_notes.md  
-          echo "- **Linux**: Download and extract, run ./M3U8Downloader" >> release_notes.md
+          echo "- **Windows**: Download and extract the M3U8Downloader-Windows folder, run M3U8Downloader.exe" >> release_notes.md
+          echo "- **macOS**: Download and extract M3U8Downloader-macOS, run ./M3U8Downloader" >> release_notes.md  
+          echo "- **Linux**: Download and extract M3U8Downloader-Linux, run ./M3U8Downloader" >> release_notes.md
           echo "" >> release_notes.md
           echo "### Features:" >> release_notes.md
           echo "- Self-contained (FFmpeg included)" >> release_notes.md
@@ -181,9 +247,29 @@ jobs:
           echo "- Automatic quality selection" >> release_notes.md
           echo "- Real-time progress tracking" >> release_notes.md
           echo "- Cross-platform compatibility" >> release_notes.md
+          echo "- No additional software installation required" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### File Sizes:" >> release_notes.md
+          
+          # Get file sizes
+          if [ -d "M3U8Downloader-Windows" ]; then
+            win_size=$(du -sh M3U8Downloader-Windows | cut -f1)
+            echo "- Windows: ${win_size}" >> release_notes.md
+          fi
+          
+          if [ -d "M3U8Downloader-macOS" ]; then
+            mac_size=$(du -sh M3U8Downloader-macOS | cut -f1)
+            echo "- macOS: ${mac_size}" >> release_notes.md
+          fi
+          
+          if [ -d "M3U8Downloader-Linux" ]; then
+            linux_size=$(du -sh M3U8Downloader-Linux | cut -f1)
+            echo "- Linux: ${linux_size}" >> release_notes.md
+          fi
 
       - name: Upload release info
         uses: actions/upload-artifact@v4
         with:
           name: Release-Info
           path: release_notes.md
+          retention-days: 30

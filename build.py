@@ -1,4 +1,10 @@
-import PyInstaller.__main__
+try:
+    import PyInstaller.__main__
+except ImportError as e:
+    print("ERROR: PyInstaller not found!")
+    print("Please install PyInstaller with: pip install pyinstaller")
+    print(f"Import error: {e}")
+    sys.exit(1)
 import sys
 import os
 import platform
@@ -172,12 +178,12 @@ def main():
         build_options.append('--add-binary={}{}.'.format(ffmpeg_path, data_sep))
         print("INFO: FFmpeg will be bundled with the executable!")
     
-    # Add icon if available
-    if icon_arg and (
-        (system == 'Darwin' and os.path.exists('app_icon.icns')) or
-        (system == 'Windows' and os.path.exists('app_icon.ico'))
-    ):
-        build_options.append(icon_arg)
+    # Icons removed to prevent build issues
+    # if icon_arg and (
+    #     (system == 'Darwin' and os.path.exists('app_icon.icns')) or
+    #     (system == 'Windows' and os.path.exists('app_icon.ico'))
+    # ):
+    #     build_options.append(icon_arg)
     
     # Add data files
     if os.path.exists('app_icon.ico'):
